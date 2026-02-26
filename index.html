@@ -1,0 +1,626 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>三國布袋戲｜橫向清版（手機可玩）</title>
+<style>
+html,body{margin:0;padding:0;background:#0f0f14;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;}
+canvas{display:block;touch-action:none;background:#12121a;}
+.hud{
+position:fixed;left:0;top:0;right:0;
+padding:10px 12px;color:#e8e8ef;font-size:14px;
+display:flex;gap:12px;align-items:center;justify-content:space-between;
+pointer-events:none;
+}
+.bar{
+width:46vw;max-width:420px;height:12px;border-radius:8px;background:#2a2a34;overflow:hidden;
+box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.bar > div{height:100%;background:#57d27a;width:100%;}
+.small{
+opacity:.85;font-size:12px;white-space:nowrap;
+}
+
+/* Touch controls */
+.controls{position:fixed;left:0;right:0;bottom:0;height:44vh;max-height:320px;pointer-events:none;}
+.stickWrap{
+position:absolute;left:14px;bottom:14px;width:170px;height:170px;
+pointer-events:auto;
+}
+.stickBase{
+position:absolute;left:0;top:0;width:170px;height:170px;border-radius:999px;
+background:rgba(255,255,255,.06);
+box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;
+}
+.stickKnob{
+position:absolute;left:50%;top:50%;width:74px;height:74px;margin-left:-37px;margin-top:-37px;border-radius:999px;
+background:rgba(255,255,255,.12);
+box-shadow:0 6px 18px rgba(0,0,0,.35);
+transform:translate(0,0);
+}
+.btnWrap{
+position:absolute;right:14px;bottom:14px;width:220px;height:180px;pointer-events:auto;
+display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;align-content:end;
+}
+.btn{
+border:none;border-radius:18px;color:#111;font-weight:700;font-size:16px;
+background:rgba(255,255,255,.16);color:#f2f2f8;
+box-shadow:0 0 0 1px rgba(255,255,255,.10) inset, 0 10px 22px rgba(0,0,0,.35);
+-webkit-tap-highlight-color: transparent;
+}
+.btn:active{transform:translateY(1px);}
+.btn.jump{grid-column:2;grid-row:1;}
+.btn.punch{grid-column:1;grid-row:2;}
+.btn.heavy{grid-column:2;grid-row:2;}
+
+.toast{
+position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);
+color:#fff;font-size:18px;font-weight:800;
+background:rgba(0,0,0,.55);padding:12px 16px;border-radius:14px;
+box-shadow:0 10px 30px rgba(0,0,0,.45);
+display:none;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="hud">
+<div style="display:flex;flex-direction:column;gap:6px;">
+<div class="bar"><div id="hpFill"></div></div>
+<div class="small" id="hpText">HP</div>
+</div>
+<div class="small" id="infoText">三國布袋戲｜橫向清版</div>
+</div>
+
+<div class="controls">
+<div class="stickWrap" id="stick">
+<div class="stickBase"></div>
+<div class="stickKnob" id="knob"></div>
+</div>
+
+<div class="btnWrap">
+<button class="btn jump" id="btnJump">跳</button>
+<button class="btn punch" id="btnPunch">普攻</button>
+<button class="btn heavy" id="btnHeavy">重攻</button>
+</div>
+</div>
+
+<div class="toast" id="toast">倒下了！點一下畫面重來</div>
+
+<script>
+(() => {
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+const hpFill = document.getElementById('hpFill');
+const hpText = document.getElementById('hpText');
+const infoText = document.getElementById('infoText');
+const toast = document.getElementById('toast');
+
+function resize(){
+const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+canvas.width = Math.floor(window.innerWidth * dpr);
+canvas.height = Math.floor(window.innerHeight * dpr);
+canvas.style.width = window.innerWidth + 'px';
+canvas.style.height = window.innerHeight + 'px';
+ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize, {passive:true});
+resize();
+
+// World
+const WORLD_W = 3200;
+const LANE_MIN = 290;
+const LANE_MAX = 440;
+const GROUND_Y = 400;
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a,b,t)=>a+(b-a)*t;
+
+// Simple sfx-ish (no audio file, keep stable on iOS)
+const hitFlashFrames = 6;
+
+const Attack = (name, dmg, rangeX, rangeY, startup, active, recovery, kb) =>
+({name, dmg, rangeX, rangeY, startup, active, recovery, kb});
+
+const ATK_LIGHT = Attack('light', 8, 70, 26, 4, 6, 10, 3.2);
+const ATK_HEAVY = Attack('heavy', 14, 92, 30, 7, 7, 16, 4.3);
+
+class Entity{
+constructor(x,y,w,h){
+this.x=x; this.y=y; this.vx=0; this.vy=0;
+this.w=w; this.h=h; this.facing=1;
+this.onGround=true;
+this.maxHp=100; this.hp=100;
+this.hitstun=0; this.invuln=0; this.dead=false;
+this.attack=null; this.at=0;
+this.hitSet=new Set();
+this.flash=0;
+}
+body(){
+return {x:this.x-this.w/2, y:this.y-this.h, w:this.w, h:this.h};
+}
+shadow(){
+return {x:this.x-18, y:this.y-6, w:36, h:10};
+}
+phase(){
+if(!this.attack) return 'none';
+const t=this.at;
+if(t < this.attack.startup) return 'startup';
+if(t < this.attack.startup + this.attack.active) return 'active';
+if(t < this.attack.startup + this.attack.active + this.attack.recovery) return 'recovery';
+return 'done';
+}
+hitbox(){
+if(!this.attack) return null;
+if(this.phase()!=='active') return null;
+const hx = this.x + this.facing*(this.w/2 + this.attack.rangeX/2);
+const hy = this.y - this.h*0.55;
+return {x:hx-this.attack.rangeX/2, y:hy-this.attack.rangeY/2, w:this.attack.rangeX, h:this.attack.rangeY};
+}
+startAttack(atk){
+if(this.dead) return;
+if(this.attack || this.hitstun>0) return;
+this.attack = atk;
+this.at = 0;
+this.hitSet.clear();
+}
+takeHit(dmg, kb, dir){
+if(this.dead) return;
+if(this.invuln>0) return;
+this.hp = Math.max(0, this.hp - dmg);
+this.hitstun = 18;
+this.invuln = 18;
+this.flash = hitFlashFrames;
+this.vx += dir*kb;
+if(this.hp<=0){
+this.dead=true;
+}
+}
+tick(){
+if(this.hitstun>0) this.hitstun--;
+if(this.invuln>0) this.invuln--;
+if(this.flash>0) this.flash--;
+if(this.attack){
+this.at++;
+if(this.phase()==='done'){
+this.attack=null; this.at=0; this.hitSet.clear();
+}
+}
+}
+physics(){
+if(!this.onGround) this.vy += 0.8;
+else this.vy = 0;
+
+this.x += this.vx;
+this.y += this.vy;
+
+this.vx *= 0.82;
+if(Math.abs(this.vx) < 0.08) this.vx = 0;
+
+this.y = clamp(this.y, LANE_MIN, LANE_MAX);
+if(this.y >= GROUND_Y){
+this.y = GROUND_Y;
+this.onGround = true;
+}else{
+this.onGround = false;
+}
+this.x = clamp(this.x, 30, WORLD_W-30);
+}
+}
+
+class Player extends Entity{
+constructor(x,y){
+super(x,y,38,64);
+this.maxHp=150; this.hp=this.maxHp;
+this.score=0;
+this.lightCd=0;
+this.heavyCd=0;
+}
+update(input){
+if(this.dead) return;
+
+if(this.lightCd>0) this.lightCd--;
+if(this.heavyCd>0) this.heavyCd--;
+
+const move = this.attack ? 1.2 : 3.2;
+if(this.hitstun<=0){
+if(Math.abs(input.dx) > 0.08){
+this.facing = input.dx>0 ? 1 : -1;
+this.vx += input.dx * move;
+}
+if(Math.abs(input.dy) > 0.08){
+this.y += input.dy * 2.4;
+this.y = clamp(this.y, LANE_MIN, LANE_MAX);
+}
+}
+
+if(input.jump && this.onGround && this.hitstun<=0 && !this.attack){
+this.onGround=false;
+this.vy = -12.5;
+}
+
+if(input.light && this.lightCd===0){
+this.startAttack(ATK_LIGHT);
+this.lightCd=8;
+}
+if(input.heavy && this.heavyCd===0){
+this.startAttack(ATK_HEAVY);
+this.heavyCd=16;
+}
+}
+}
+
+class Enemy extends Entity{
+constructor(x,y,tier=1){
+super(x,y,36,60);
+this.tier=tier;
+this.maxHp = 52 + 18*(tier-1);
+this.hp = this.maxHp;
+this.attackCd = 40 + Math.floor(Math.random()*50);
+}
+ai(p){
+if(this.dead) return;
+if(this.attackCd>0) this.attackCd--;
+
+if(this.hitstun>0) return;
+
+this.facing = p.x>this.x ? 1 : -1;
+
+const dx = p.x - this.x;
+const dy = p.y - this.y;
+
+// lane alignment
+if(Math.abs(dy) > 10){
+this.y += clamp(dy, -1.8, 1.8);
+}
+
+// approach
+const distX = Math.abs(dx);
+const distY = Math.abs(dy);
+
+if(distX > 85){
+const sp = 2.0 + 0.25*this.tier;
+this.vx += clamp(dx, -1, 1) * sp;
+}else{
+// in range
+if(!this.attack && this.attackCd===0 && distY < 28){
+const atk = (Math.random()<0.75) ? ATK_LIGHT : ATK_HEAVY;
+this.startAttack(atk);
+this.attackCd = 45 + Math.floor(Math.random()*60);
+}
+}
+}
+}
+
+// Input: virtual stick + buttons
+const input = {dx:0, dy:0, jump:false, light:false, heavy:false};
+let stickActive=false, stickId=null;
+const stick = document.getElementById('stick');
+const knob = document.getElementById('knob');
+const baseRect = () => stick.getBoundingClientRect();
+let stickCenter = {x:0,y:0};
+
+function setKnob(nx, ny){
+const max = 46;
+const x = clamp(nx*max, -max, max);
+const y = clamp(ny*max, -max, max);
+knob.style.transform = `translate(${x}px, ${y}px)`;
+}
+function resetStick(){
+stickActive=false; stickId=null;
+input.dx=0; input.dy=0;
+setKnob(0,0);
+}
+
+function onStickStart(e){
+e.preventDefault();
+const t = (e.changedTouches ? e.changedTouches[0] : e);
+stickActive=true; stickId = t.identifier ?? 'mouse';
+const r = baseRect();
+stickCenter = {x: r.left + r.width/2, y: r.top + r.height/2};
+onStickMove(e);
+}
+function onStickMove(e){
+if(!stickActive) return;
+const touches = e.changedTouches ? Array.from(e.changedTouches) : [e];
+const t = touches.find(tt => (tt.identifier ?? 'mouse') === stickId);
+if(!t) return;
+const dx = (t.clientX - stickCenter.x);
+const dy = (t.clientY - stickCenter.y);
+const len = Math.hypot(dx, dy) || 1;
+const nx = dx / Math.max(60, len);
+const ny = dy / Math.max(60, len);
+input.dx = clamp(nx, -1, 1);
+input.dy = clamp(ny, -1, 1);
+setKnob(input.dx, input.dy);
+}
+function onStickEnd(e){
+const touches = e.changedTouches ? Array.from(e.changedTouches) : [e];
+const t = touches.find(tt => (tt.identifier ?? 'mouse') === stickId);
+if(t) resetStick();
+}
+
+stick.addEventListener('touchstart', onStickStart, {passive:false});
+stick.addEventListener('touchmove', onStickMove, {passive:false});
+stick.addEventListener('touchend', onStickEnd, {passive:false});
+stick.addEventListener('touchcancel', onStickEnd, {passive:false});
+
+// Buttons
+const btnJump = document.getElementById('btnJump');
+const btnPunch = document.getElementById('btnPunch');
+const btnHeavy = document.getElementById('btnHeavy');
+
+function bindHold(btn, key){
+btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); input[key]=true; }, {passive:false});
+btn.addEventListener('touchend', (e)=>{ e.preventDefault(); input[key]=false; }, {passive:false});
+btn.addEventListener('touchcancel',(e)=>{ e.preventDefault(); input[key]=false; }, {passive:false});
+}
+bindHold(btnJump,'jump');
+bindHold(btnPunch,'light');
+bindHold(btnHeavy,'heavy');
+
+// Tap to restart when dead
+canvas.addEventListener('touchstart', (e)=>{
+if(state.gameOver){
+e.preventDefault();
+restart();
+}
+}, {passive:false});
+
+// Game state
+const state = {
+camX:0,
+wave:1,
+waveTimer:0,
+gameOver:false,
+alive:0,
+};
+
+let player = new Player(180, GROUND_Y);
+let enemies = [];
+
+function spawnWave(){
+const count = 3 + (state.wave % 3);
+const tier = clamp(1 + Math.floor(state.wave/3), 1, 4);
+for(let i=0;i<count;i++){
+const x = clamp(state.camX + innerWidth + 160 + Math.random()*360, 120, WORLD_W-120);
+const y = LANE_MIN + 10 + Math.random()*(LANE_MAX-LANE_MIN-20);
+enemies.push(new Enemy(x,y,tier));
+}
+}
+
+function aabb(a,b){
+return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+
+function resolveHits(){
+const hb = player.hitbox();
+if(hb){
+for(let i=0;i<enemies.length;i++){
+const en = enemies[i];
+if(en.dead) continue;
+if(player.hitSet.has(i)) continue;
+if(Math.abs(en.y - player.y) <= player.attack.rangeY){
+if(aabb(hb, en.body())){
+en.takeHit(player.attack.dmg, player.attack.kb, player.facing);
+player.hitSet.add(i);
+player.score += en.dead ? 60 : 12;
+}
+}
+}
+}
+
+for(let i=0;i<enemies.length;i++){
+const en = enemies[i];
+const ehb = en.hitbox();
+if(!ehb) continue;
+const key = 1; // player single
+if(en.hitSet.has(key)) continue;
+if(Math.abs(player.y - en.y) <= en.attack.rangeY){
+if(aabb(ehb, player.body())){
+player.takeHit(en.attack.dmg, en.attack.kb, en.facing);
+en.hitSet.add(key);
+}
+}
+}
+}
+
+function draw(){
+const W = window.innerWidth;
+const H = window.innerHeight;
+
+// background
+ctx.clearRect(0,0,W,H);
+ctx.fillStyle = '#12121a';
+ctx.fillRect(0,0,W,H);
+
+// parallax vertical lines
+ctx.globalAlpha = 0.22;
+ctx.strokeStyle = '#2b2b34';
+ctx.lineWidth = 1;
+const offset = (state.camX*0.25) % 90;
+for(let x=-offset; x<W+90; x+=90){
+ctx.beginPath();
+ctx.moveTo(x,0);
+ctx.lineTo(x,H);
+ctx.stroke();
+}
+ctx.globalAlpha = 1;
+
+// floor
+ctx.fillStyle = '#2a2a34';
+ctx.fillRect(0, GROUND_Y+6, W, H-(GROUND_Y+6));
+// lane stripes
+ctx.globalAlpha = 0.35;
+ctx.fillStyle = '#1d1d26';
+ctx.fillRect(0, LANE_MIN+4, W, 2);
+ctx.fillRect(0, LANE_MAX+4, W, 2);
+ctx.globalAlpha = 1;
+
+// scenery: "真定城牆" blocks
+const blocks = [320, 860, 1360, 1920, 2460, 2920];
+for(const bx of blocks){
+const sx = bx - state.camX;
+if(sx>-120 && sx<W+120){
+ctx.fillStyle = '#1c1c24';
+roundRect(sx, 245, 86, 140, 16);
+ctx.fillStyle = '#262632';
+roundRect(sx+12, 270, 62, 108, 14);
+
+// banner pole
+ctx.strokeStyle = 'rgba(255,255,255,.14)';
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.moveTo(sx+72, 238);
+ctx.lineTo(sx+72, 330);
+ctx.stroke();
+// banner (yellow turban vibe)
+ctx.fillStyle = 'rgba(245,210,110,.25)';
+roundRect(sx+74, 248, 38, 20, 6);
+}
+}
+
+// sort by y for depth
+const drawList = enemies.concat([player]).sort((a,b)=>a.y-b.y);
+
+for(const e of drawList){
+const bx = e.body();
+const x = bx.x - state.camX;
+const y = bx.y;
+
+// shadow
+const sh = e.shadow();
+ctx.fillStyle = 'rgba(0,0,0,.35)';
+ellipse(sh.x - state.camX + sh.w/2, sh.y + sh.h/2, sh.w/2, sh.h/2);
+
+if(e.dead){
+ctx.globalAlpha = 0.65;
+ctx.fillStyle = '#3b3b45';
+roundRect(x, y, bx.w, bx.h, 10);
+ctx.globalAlpha = 1;
+continue;
+}
+
+// Puppet-ish silhouette: head + body (simple shapes)
+const isPlayer = (e === player);
+const baseC = isPlayer ? '#70d6ff' : '#f1d47d';
+
+// hit flash
+const flash = e.flash>0;
+ctx.fillStyle = flash ? '#ffffff' : baseC;
+
+// body
+roundRect(x, y+12, bx.w, bx.h-12, 10);
+
+// head (bigger, puppet vibe)
+ctx.fillStyle = flash ? '#ffffff' : (isPlayer ? '#9be3ff' : '#ffe6a7');
+roundRect(x+6, y-2, bx.w-12, 22, 10);
+
+// eye dot
+ctx.fillStyle = '#16161b';
+const ex = x + bx.w/2 + 7*e.facing;
+ctx.beginPath();
+ctx.arc(ex, y+10, 3, 0, Math.PI*2);
+ctx.fill();
+
+// weapon/arm hint when attacking
+const hb = e.hitbox();
+if(hb){
+ctx.strokeStyle = 'rgba(255,120,120,.95)';
+ctx.lineWidth = 2;
+ctx.strokeRect(hb.x - state.camX, hb.y, hb.w, hb.h);
+}
+}
+
+// mini captions
+ctx.fillStyle = 'rgba(255,255,255,.80)';
+ctx.font = '14px -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif';
+ctx.fillText('左下搖桿移動｜右下：跳/普攻/重攻', 12, H-12);
+}
+
+function roundRect(x,y,w,h,r){
+ctx.beginPath();
+ctx.moveTo(x+r,y);
+ctx.arcTo(x+w,y,x+w,y+h,r);
+ctx.arcTo(x+w,y+h,x,y+h,r);
+ctx.arcTo(x,y+h,x,y,r);
+ctx.arcTo(x,y,x+w,y,r);
+ctx.closePath();
+ctx.fill();
+}
+function ellipse(cx,cy,rx,ry){
+ctx.beginPath();
+ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
+ctx.fill();
+}
+
+function restart(){
+state.camX=0; state.wave=1; state.waveTimer=0; state.gameOver=false;
+player = new Player(180, GROUND_Y);
+enemies = [];
+spawnWave();
+toast.style.display = 'none';
+}
+
+function update(){
+if(state.gameOver){
+draw();
+requestAnimationFrame(update);
+return;
+}
+
+// one-frame buttons: light/heavy/jump are "held" by touch, but we treat as press each frame okay.
+player.update(input);
+
+for(const en of enemies) en.ai(player);
+
+player.physics(); player.tick();
+for(const en of enemies){ en.physics(); en.tick(); }
+
+resolveHits();
+
+// camera
+const target = player.x - window.innerWidth*0.35;
+state.camX = lerp(state.camX, target, 0.10);
+state.camX = clamp(state.camX, 0, WORLD_W - window.innerWidth);
+
+// wave spawn logic
+const alive = enemies.filter(e=>!e.dead).length;
+state.alive = alive;
+if(alive <= 2){
+state.waveTimer++;
+if(state.waveTimer > 90){
+state.wave++;
+spawnWave();
+state.waveTimer=0;
+}
+}else{
+state.waveTimer=0;
+}
+
+if(player.dead){
+state.gameOver=true;
+toast.style.display = 'block';
+infoText.textContent = `倒下｜分數 ${player.score} ｜點畫面重來`;
+}else{
+infoText.textContent = `波次 ${state.wave}｜敵兵 ${alive}｜分數 ${player.score}`;
+}
+
+// UI hp
+const pct = Math.max(0, player.hp/player.maxHp);
+hpFill.style.width = Math.floor(pct*100) + '%';
+hpText.textContent = `趙雲（布袋戲）HP ${player.hp}/${player.maxHp}`;
+
+draw();
+requestAnimationFrame(update);
+}
+
+restart();
+update();
+})();
+</script>
+</body>
+</html>
