@@ -1,150 +1,264 @@
 <!doctype html>
-<html>
+<html lang="zh-Hant">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-<title>三國布袋戲｜橫向清版（手機可玩）</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Arcade Beat 'em Up - Specials + Knockdown</title>
 <style>
-html,body{margin:0;padding:0;background:#0f0f14;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;}
-canvas{display:block;touch-action:none;background:#12121a;}
-.hud{
-position:fixed;left:0;top:0;right:0;
-padding:10px 12px;color:#e8e8ef;font-size:14px;
-display:flex;gap:12px;align-items:center;justify-content:space-between;
-pointer-events:none;
+html,body{margin:0;padding:0;background:#0e0f14;overflow:hidden;font-family:system-ui,-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC",sans-serif;}
+canvas{display:block;background:#141622;outline:none}
+.hud{position:fixed;left:0;top:0;right:0;padding:10px 12px;color:#e8e8ef;font-size:14px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+.bar{width:44vw;max-width:460px;height:12px;border-radius:10px;background:#2a2c3a;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.08) inset}
+.bar>div{height:100%;width:100%;background:#57d27a}
+.small{opacity:.86;font-size:12px;white-space:nowrap}
+.toast{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);display:none;pointer-events:auto;cursor:pointer;
+background:rgba(0,0,0,.62);color:#fff;padding:12px 16px;border-radius:14px;font-weight:900;box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.help{position:fixed;left:12px;bottom:12px;color:rgba(255,255,255,.78);font-size:12px;background:rgba(0,0,0,.25);padding:8px 10px;border-radius:10px;pointer-events:none;line-height:1.35}
+.overlay{
+position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;
+background:rgba(0,0,0,.62);color:#fff;
 }
-.bar{
-width:46vw;max-width:420px;height:12px;border-radius:8px;background:#2a2a34;overflow:hidden;
-box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;
+.panel{
+width:min(760px,92vw);
+background:rgba(20,22,34,.92);
+border-radius:16px;
+box-shadow:0 20px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.08) inset;
+padding:18px 18px 14px 18px;
 }
-.bar > div{height:100%;background:#57d27a;width:100%;}
-.small{
-opacity:.85;font-size:12px;white-space:nowrap;
-}
-
-/* Touch controls */
-.controls{position:fixed;left:0;right:0;bottom:0;height:44vh;max-height:320px;pointer-events:none;}
-.stickWrap{
-position:absolute;left:14px;bottom:14px;width:170px;height:170px;
-pointer-events:auto;
-}
-.stickBase{
-position:absolute;left:0;top:0;width:170px;height:170px;border-radius:999px;
+.title{font-weight:900;font-size:18px;margin-bottom:8px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 12px}
+.card{
+flex:1 1 220px;
 background:rgba(255,255,255,.06);
+border-radius:14px;
+padding:12px;
 box-shadow:0 0 0 1px rgba(255,255,255,.08) inset;
 }
-.stickKnob{
-position:absolute;left:50%;top:50%;width:74px;height:74px;margin-left:-37px;margin-top:-37px;border-radius:999px;
-background:rgba(255,255,255,.12);
-box-shadow:0 6px 18px rgba(0,0,0,.35);
-transform:translate(0,0);
-}
-.btnWrap{
-position:absolute;right:14px;bottom:14px;width:220px;height:180px;pointer-events:auto;
-display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;align-content:end;
-}
-.btn{
-border:none;border-radius:18px;color:#111;font-weight:700;font-size:16px;
-background:rgba(255,255,255,.16);color:#f2f2f8;
-box-shadow:0 0 0 1px rgba(255,255,255,.10) inset, 0 10px 22px rgba(0,0,0,.35);
--webkit-tap-highlight-color: transparent;
-}
-.btn:active{transform:translateY(1px);}
-.btn.jump{grid-column:2;grid-row:1;}
-.btn.punch{grid-column:1;grid-row:2;}
-.btn.heavy{grid-column:2;grid-row:2;}
-
-.toast{
-position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);
-color:#fff;font-size:18px;font-weight:800;
-background:rgba(0,0,0,.55);padding:12px 16px;border-radius:14px;
-box-shadow:0 10px 30px rgba(0,0,0,.45);
-display:none;
-}
+.card b{display:block;margin-bottom:6px}
+.hint{opacity:.85;font-size:12px;line-height:1.45}
+.kbd{display:inline-block;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.10);box-shadow:0 0 0 1px rgba(255,255,255,.10) inset;font-weight:800}
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
+<canvas id="c" tabindex="0"></canvas>
 
 <div class="hud">
-<div style="display:flex;flex-direction:column;gap:6px;">
+<div style="display:flex;flex-direction:column;gap:6px;min-width:260px">
 <div class="bar"><div id="hpFill"></div></div>
 <div class="small" id="hpText">HP</div>
 </div>
-<div class="small" id="infoText">三國布袋戲｜橫向清版</div>
+<div class="small" id="infoText">Arcade Beat 'em Up</div>
 </div>
 
-<div class="controls">
-<div class="stickWrap" id="stick">
-<div class="stickBase"></div>
-<div class="stickKnob" id="knob"></div>
+<div class="toast" id="toast">倒下了！按 R 或點一下畫面重來</div>
+
+<div class="help">
+A/D 左右｜W/S 上下｜Space 跳｜J 普攻/抓｜K 重攻/投擲｜L 必殺（槍/刀）｜R 重開<br/>
+重攻/必殺/投擲會倒地；起身有短暫無敵（閃白）。
 </div>
 
-<div class="btnWrap">
-<button class="btn jump" id="btnJump">跳</button>
-<button class="btn punch" id="btnPunch">普攻</button>
-<button class="btn heavy" id="btnHeavy">重攻</button>
+<div class="overlay" id="selectOverlay">
+<div class="panel">
+<div class="title">選角色（街機感）：按 1 / 2 / 3</div>
+<div class="row">
+<div class="card">
+<b>1｜劍（均衡）</b>
+<div class="hint">連段穩定，重攻擊退。沒有必殺（先保留）。</div>
+</div>
+<div class="card">
+<b>2｜槍（長距離）</b>
+<div class="hint">普攻更遠。必殺 <span class="kbd">L</span>：突進連刺（多段）。</div>
+</div>
+<div class="card">
+<b>3｜刀（爆發近戰）</b>
+<div class="hint">普攻更快。必殺 <span class="kbd">L</span>：旋風斬（大範圍多段）。</div>
 </div>
 </div>
-
-<div class="toast" id="toast">倒下了！點一下畫面重來</div>
+<div class="hint">
+<span class="kbd">J</span> 近身優先抓 → 抓住後 <span class="kbd">J</span> 連揍｜<span class="kbd">K</span> 投擲（投擲會倒地）
+</div>
+</div>
+</div>
 
 <script>
 (() => {
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
-
 const hpFill = document.getElementById('hpFill');
 const hpText = document.getElementById('hpText');
 const infoText = document.getElementById('infoText');
 const toast = document.getElementById('toast');
+const overlay = document.getElementById('selectOverlay');
 
 function resize(){
 const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-canvas.width = Math.floor(window.innerWidth * dpr);
-canvas.height = Math.floor(window.innerHeight * dpr);
-canvas.style.width = window.innerWidth + 'px';
-canvas.style.height = window.innerHeight + 'px';
+canvas.width = Math.floor(innerWidth * dpr);
+canvas.height = Math.floor(innerHeight * dpr);
+canvas.style.width = innerWidth + 'px';
+canvas.style.height = innerHeight + 'px';
 ctx.setTransform(dpr,0,0,dpr,0,0);
 }
-window.addEventListener('resize', resize, {passive:true});
+addEventListener('resize', resize, {passive:true});
 resize();
 
-// World
-const WORLD_W = 3200;
-const LANE_MIN = 290;
+const WORLD_W = 3800;
+const LANE_MIN = 285;
 const LANE_MAX = 440;
-const GROUND_Y = 400;
+const GROUND_Y = 405;
 
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const lerp = (a,b,t)=>a+(b-a)*t;
 
-// Simple sfx-ish (no audio file, keep stable on iOS)
-const hitFlashFrames = 6;
+// Input
+const keys = new Set();
+addEventListener('keydown', (e)=>{
+const k = e.key.toLowerCase();
+keys.add(k);
+if ([' ', 'arrowup','arrowdown','arrowleft','arrowright'].includes(k)) e.preventDefault();
 
-const Attack = (name, dmg, rangeX, rangeY, startup, active, recovery, kb) =>
-({name, dmg, rangeX, rangeY, startup, active, recovery, kb});
+if (k === 'r') restart(true);
 
-const ATK_LIGHT = Attack('light', 8, 70, 26, 4, 6, 10, 3.2);
-const ATK_HEAVY = Attack('heavy', 14, 92, 30, 7, 7, 16, 4.3);
+if (state.mode === 'select' && (k==='1'||k==='2'||k==='3')){
+const choice = (k==='1') ? 'sword' : (k==='2') ? 'spear' : 'dao';
+startGame(choice);
+}
+}, {passive:false});
+addEventListener('keyup', (e)=> keys.delete(e.key.toLowerCase()));
+function pressed(k){ return keys.has(k); }
+
+canvas.addEventListener('click', ()=>{ if (state.gameOver) restart(true); });
+toast.addEventListener('click', ()=> restart(true));
+
+// Combat
+const Attack = (name, dmg, rangeX, rangeY, startup, active, recovery, kb, hitstop=2, knocksDown=false) =>
+({name, dmg, rangeX, rangeY, startup, active, recovery, kb, hitstop, knocksDown});
+
+// Move sets by weapon
+const MOVESETS = {
+sword: {
+label: "劍",
+light: [
+Attack('jab', 6, 64, 24, 3, 5, 8, 2.8, 2, false),
+Attack('slash', 7, 74, 26, 3, 6, 10, 3.1, 2, false),
+Attack('thrust',9, 82, 26, 4, 6, 12, 3.6, 3, false),
+],
+heavy: Attack('heavy', 14, 98, 30, 6, 7, 16, 4.6, 4, true),
+grab: {pummelDmg: 5, pummelCadence: 10, throwDmg: 16, throwKb: 6.2, throwDown: true},
+special: null
+},
+spear: {
+label: "槍",
+light: [
+Attack('poke', 5, 82, 24, 3, 5, 8, 2.6, 2, false),
+Attack('poke2', 6, 92, 24, 3, 6, 10, 3.0, 2, false),
+Attack('lunge', 8, 104, 26, 4, 6, 12, 3.4, 3, false),
+],
+heavy: Attack('heavy', 12, 122, 28, 7, 7, 18, 4.0, 4, true),
+grab: {pummelDmg: 4, pummelCadence: 11, throwDmg: 15, throwKb: 5.8, throwDown: true},
+// Special: Dash multi-hit
+special: {
+key: 'l',
+label: '突進連刺',
+cooldown: 240, // frames
+duration: 48,
+dashSpeed: 8.0,
+hitEvery: 6, // per-target hit interval
+dmg: 6,
+rangeX: 120,
+rangeY: 26,
+kb: 2.8,
+hitstop: 2,
+knocksDownOnLast: true,
+}
+},
+dao: {
+label: "刀",
+light: [
+Attack('cut1', 6, 62, 24, 2, 5, 7, 3.0, 2, false),
+Attack('cut2', 7, 70, 26, 2, 6, 9, 3.4, 2, false),
+Attack('cut3', 10, 78, 26, 3, 6, 11, 4.0, 3, false),
+],
+heavy: Attack('heavy', 16, 104, 30, 6, 7, 16, 5.2, 4, true),
+grab: {pummelDmg: 6, pummelCadence: 9, throwDmg: 18, throwKb: 7.0, throwDown: true},
+// Special: Spin AOE multi-hit
+special: {
+key: 'l',
+label: '旋風斬',
+cooldown: 240,
+duration: 54,
+hitEvery: 7,
+dmg: 7,
+rangeX: 120,
+rangeY: 40,
+kb: 3.4,
+hitstop: 2,
+knocksDownOnLast: true,
+}
+}
+};
+
+class Item{
+constructor(x,y){
+this.x=x; this.y=y;
+this.vy = -6 - Math.random()*2;
+this.life = 60*18;
+this.taken = false;
+}
+tick(){
+this.vy += 0.55;
+this.y += this.vy;
+if(this.y > GROUND_Y) { this.y = GROUND_Y; this.vy *= -0.25; }
+this.life--;
+}
+rect(){ return {x:this.x-10, y:this.y-22, w:20, h:18}; }
+}
+
+function aabb(a,b){
+return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+}
+
+function shadow(x,y){
+ctx.fillStyle='rgba(0,0,0,.35)';
+ctx.beginPath();
+ctx.ellipse(x,y,18,6,0,0,Math.PI*2);
+ctx.fill();
+}
+function pxRect(x,y,w,h,c){
+ctx.fillStyle=c; ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h));
+}
 
 class Entity{
-constructor(x,y,w,h){
-this.x=x; this.y=y; this.vx=0; this.vy=0;
-this.w=w; this.h=h; this.facing=1;
+constructor(x,y){
+this.x=x; this.y=y;
+this.vx=0; this.vy=0;
+this.facing=1;
 this.onGround=true;
+
+this.w=36; this.h=60;
 this.maxHp=100; this.hp=100;
-this.hitstun=0; this.invuln=0; this.dead=false;
-this.attack=null; this.at=0;
+
+this.hitstun=0;
+this.invuln=0;
+this.dead=false;
+
+this.attack=null;
+this.at=0;
 this.hitSet=new Set();
 this.flash=0;
+this.animT=0;
+
+// Grab
+this.grabbedBy = null;
+this.grabTarget = null;
+this.grabT = 0;
+this.grabPummelCd = 0;
+
+// Knockdown
+this.down = 0;
+this.getup = 0;
+this.getupInv = 0;
 }
-body(){
-return {x:this.x-this.w/2, y:this.y-this.h, w:this.w, h:this.h};
-}
-shadow(){
-return {x:this.x-18, y:this.y-6, w:36, h:10};
-}
+body(){ return {x:this.x-this.w/2, y:this.y-this.h, w:this.w, h:this.h}; }
 phase(){
 if(!this.attack) return 'none';
 const t=this.at;
@@ -154,442 +268,847 @@ if(t < this.attack.startup + this.attack.active + this.attack.recovery) return '
 return 'done';
 }
 hitbox(){
-if(!this.attack) return null;
-if(this.phase()!=='active') return null;
+if(!this.attack || this.phase()!=='active') return null;
 const hx = this.x + this.facing*(this.w/2 + this.attack.rangeX/2);
-const hy = this.y - this.h*0.55;
+const hy = this.y - this.h*0.56;
 return {x:hx-this.attack.rangeX/2, y:hy-this.attack.rangeY/2, w:this.attack.rangeX, h:this.attack.rangeY};
 }
+canAct(){
+return !this.dead && this.hitstun<=0 && !this.attack && !this.grabbedBy && !this.grabTarget && this.down<=0 && this.getup<=0;
+}
 startAttack(atk){
-if(this.dead) return;
-if(this.attack || this.hitstun>0) return;
-this.attack = atk;
+if(this.dead) return false;
+if(this.attack || this.hitstun>0 || this.grabbedBy || this.grabTarget || this.down>0 || this.getup>0) return false;
+this.attack = atk; this.at=0; this.hitSet.clear();
+return true;
+}
+
+forceKnockdown(){
+if(this.grabbedBy) this.grabbedBy.releaseGrab(true);
+if(this.grabTarget) this.releaseGrab(true);
+
+this.attack = null;
 this.at = 0;
 this.hitSet.clear();
+this.hitstun = 0;
+
+this.down = 48;
+this.getup = 0;
+this.invuln = Math.max(this.invuln, 10);
 }
-takeHit(dmg, kb, dir){
+
+startGetup(){
+this.down = 0;
+this.getup = 22;
+this.getupInv = 36;
+this.invuln = Math.max(this.invuln, this.getupInv);
+this.flash = 6;
+}
+
+takeHit(dmg,kb,dir,knocksDown=false){
 if(this.dead) return;
 if(this.invuln>0) return;
-this.hp = Math.max(0, this.hp - dmg);
+
+if(this.grabbedBy) this.grabbedBy.releaseGrab(true);
+if(this.grabTarget) this.releaseGrab(true);
+this.attack = null; this.at = 0; this.hitSet.clear();
+
+this.hp = Math.max(0, this.hp-dmg);
+this.flash = 6;
+
+if(this.down>0){
+this.invuln = Math.max(this.invuln, 10);
+if(this.hp<=0) this.dead=true;
+return;
+}
+
+if(knocksDown){
+this.vx += dir * (kb*1.2);
+this.forceKnockdown();
+}else{
 this.hitstun = 18;
 this.invuln = 18;
-this.flash = hitFlashFrames;
 this.vx += dir*kb;
-if(this.hp<=0){
-this.dead=true;
 }
+
+if(this.hp<=0) this.dead=true;
 }
+
 tick(){
 if(this.hitstun>0) this.hitstun--;
 if(this.invuln>0) this.invuln--;
 if(this.flash>0) this.flash--;
+this.animT++;
+
+if(this.down>0){
+this.down--;
+if(this.down===0 && !this.dead){
+this.startGetup();
+}
+}else if(this.getup>0){
+this.getup--;
+}
+
 if(this.attack){
 this.at++;
-if(this.phase()==='done'){
-this.attack=null; this.at=0; this.hitSet.clear();
+if(this.phase()==='done'){ this.attack=null; this.at=0; this.hitSet.clear(); }
+}
+
+if(this.grabTarget){
+this.grabT++;
+if(this.grabPummelCd>0) this.grabPummelCd--;
+if(this.grabT > 120) this.releaseGrab(false);
 }
 }
-}
+
 physics(){
-if(!this.onGround) this.vy += 0.8;
+if(this.grabbedBy){
+this.vx = 0; this.vy = 0;
+return;
+}
+
+if(this.down>0 || this.getup>0){
+this.vx *= 0.80;
+this.x += this.vx;
+this.x = clamp(this.x, 30, WORLD_W-30);
+this.y = clamp(this.y, LANE_MIN, LANE_MAX);
+return;
+}
+
+if(!this.onGround) this.vy += 0.85;
 else this.vy = 0;
 
 this.x += this.vx;
 this.y += this.vy;
 
 this.vx *= 0.82;
-if(Math.abs(this.vx) < 0.08) this.vx = 0;
+if(Math.abs(this.vx)<0.08) this.vx=0;
 
 this.y = clamp(this.y, LANE_MIN, LANE_MAX);
-if(this.y >= GROUND_Y){
-this.y = GROUND_Y;
-this.onGround = true;
-}else{
-this.onGround = false;
-}
+if(this.y >= GROUND_Y){ this.y = GROUND_Y; this.onGround=true; }
+else this.onGround=false;
+
 this.x = clamp(this.x, 30, WORLD_W-30);
+}
+
+// Grab
+startGrab(target){
+if(!target || target.dead) return false;
+if(this.grabTarget || this.grabbedBy) return false;
+if(target.grabbedBy || target.grabTarget) return false;
+if(this.attack || target.attack) return false;
+if(this.down>0 || this.getup>0 || target.down>0 || target.getup>0) return false;
+
+this.grabTarget = target;
+this.grabT = 0;
+this.grabPummelCd = 0;
+target.grabbedBy = this;
+
+const offX = this.facing * 22;
+target.x = this.x + offX;
+target.y = this.y;
+target.hitstun = 0;
+target.invuln = 0;
+return true;
+}
+keepGrabAligned(){
+if(!this.grabTarget) return;
+const t = this.grabTarget;
+const offX = this.facing * 22;
+t.x = this.x + offX;
+t.y = this.y;
+t.facing = -this.facing;
+}
+pummel(dmg, cadence, hitstopAdd){
+if(!this.grabTarget) return false;
+if(this.grabPummelCd>0) return false;
+const t = this.grabTarget;
+if(t.down>0 || t.getup>0) return false;
+
+t.hp = Math.max(0, t.hp - dmg);
+t.flash = 4;
+state.hitstop = Math.max(state.hitstop, hitstopAdd);
+this.grabPummelCd = cadence;
+
+if(t.hp<=0){
+t.dead = true;
+this.releaseGrab(true);
+}
+return true;
+}
+throwTarget(dmg, kb, knocksDown=true){
+if(!this.grabTarget) return false;
+const t = this.grabTarget;
+t.grabbedBy = null;
+this.grabTarget = null;
+
+t.takeHit(dmg, kb, this.facing, knocksDown);
+t.vx += this.facing * (kb * 0.7);
+return true;
+}
+releaseGrab(force){
+if(!this.grabTarget) return;
+const t = this.grabTarget;
+t.grabbedBy = null;
+this.grabTarget = null;
+if(force){
+t.vx += this.facing * 2.2;
+t.hitstun = Math.max(t.hitstun, 10);
+}
 }
 }
 
 class Player extends Entity{
-constructor(x,y){
-super(x,y,38,64);
-this.maxHp=150; this.hp=this.maxHp;
+constructor(x,y,weaponKey){
+super(x,y);
+this.maxHp=170; this.hp=this.maxHp;
 this.score=0;
+
+this.weaponKey = weaponKey;
+this.moves = MOVESETS[weaponKey];
+
+this.comboStep=0;
+this.comboWin=0;
 this.lightCd=0;
 this.heavyCd=0;
+
+this.specialCd = 0;
+this.specialT = 0;
+
+// edge detection
+this.prevJ=false;
+this.prevK=false;
+this.prevL=false;
+this.prevSpace=false;
 }
-update(input){
+
+isInSpecial(){ return this.specialT > 0; }
+
+specialHitbox(){
+const sp = this.moves.special;
+if(!sp || this.specialT<=0) return null;
+
+if(this.weaponKey==='spear'){
+const hx = this.x + this.facing*(this.w/2 + sp.rangeX/2);
+const hy = this.y - this.h*0.56;
+return {x:hx-sp.rangeX/2, y:hy-sp.rangeY/2, w:sp.rangeX, h:sp.rangeY};
+}
+if(this.weaponKey==='dao'){
+const hx = this.x;
+const hy = this.y - this.h*0.56;
+return {x:hx-sp.rangeX/2, y:hy-sp.rangeY/2, w:sp.rangeX, h:sp.rangeY};
+}
+return null;
+}
+
+update(){
 if(this.dead) return;
 
 if(this.lightCd>0) this.lightCd--;
 if(this.heavyCd>0) this.heavyCd--;
+if(this.specialCd>0) this.specialCd--;
+if(this.comboWin>0) this.comboWin--; else this.comboStep=0;
 
-const move = this.attack ? 1.2 : 3.2;
-if(this.hitstun<=0){
-if(Math.abs(input.dx) > 0.08){
-this.facing = input.dx>0 ? 1 : -1;
-this.vx += input.dx * move;
+const jNow = pressed('j');
+const kNow = pressed('k');
+const lNow = pressed('l');
+const spNow = pressed(' ');
+
+const jDown = jNow && !this.prevJ;
+const kDown = kNow && !this.prevK;
+const lDown = lNow && !this.prevL;
+const spDown = spNow && !this.prevSpace;
+
+this.prevJ=jNow; this.prevK=kNow; this.prevL=lNow; this.prevSpace=spNow;
+
+if(this.down>0 || this.getup>0) return;
+
+if(this.grabTarget){
+this.keepGrabAligned();
+if(jDown){
+const g = this.moves.grab;
+if(this.pummel(g.pummelDmg, g.pummelCadence, 2)) this.score += 6;
 }
-if(Math.abs(input.dy) > 0.08){
-this.y += input.dy * 2.4;
+if(kDown){
+const g = this.moves.grab;
+this.throwTarget(g.throwDmg, g.throwKb, g.throwDown);
+this.score += 18;
+}
+if(pressed('w')) this.y -= 1.6;
+if(pressed('s')) this.y += 1.6;
+this.y = clamp(this.y, LANE_MIN, LANE_MAX);
+this.keepGrabAligned();
+return;
+}
+
+if(this.isInSpecial()){
+const sp = this.moves.special;
+this.specialT--;
+
+if(this.weaponKey==='spear'){
+this.vx = this.facing * sp.dashSpeed;
+}else{
+this.vx *= 0.80;
+}
+
+if(pressed('w')) this.y -= 1.4;
+if(pressed('s')) this.y += 1.4;
+this.y = clamp(this.y, LANE_MIN, LANE_MAX);
+
+if(this.specialT<=0) this.vx *= 0.35;
+return;
+}
+
+// movement
+const moveSpeed = this.attack ? 1.05 : 3.25;
+if(this.hitstun<=0 && !this.attack && !this.grabbedBy){
+let dx=0, dy=0;
+if(pressed('a')) dx -= 1;
+if(pressed('d')) dx += 1;
+if(pressed('w')) dy -= 1;
+if(pressed('s')) dy += 1;
+
+if(dx!==0){
+this.facing = dx>0 ? 1 : -1;
+this.vx += dx*moveSpeed;
+}
+if(dy!==0){
+this.y += dy*2.55;
 this.y = clamp(this.y, LANE_MIN, LANE_MAX);
 }
 }
 
-if(input.jump && this.onGround && this.hitstun<=0 && !this.attack){
+if(spDown && this.onGround && this.hitstun<=0 && !this.attack){
 this.onGround=false;
-this.vy = -12.5;
+this.vy = -12.8;
 }
 
-if(input.light && this.lightCd===0){
-this.startAttack(ATK_LIGHT);
-this.lightCd=8;
+if(lDown && this.specialCd===0 && this.hitstun<=0 && !this.attack && !this.grabbedBy){
+const sp = this.moves.special;
+if(sp){
+this.specialT = sp.duration;
+this.specialCd = sp.cooldown;
+state.hitstop = Math.max(state.hitstop, 2);
+this.vx += this.facing * 2.0;
+this.comboStep=0; this.comboWin=0;
+return;
 }
-if(input.heavy && this.heavyCd===0){
-this.startAttack(ATK_HEAVY);
-this.heavyCd=16;
+}
+
+if(jDown && this.lightCd===0 && this.hitstun<=0 && !this.attack){
+const target = findGrabbableEnemy(this);
+if(target && this.startGrab(target)){
+state.hitstop = Math.max(state.hitstop, 2);
+return;
+}
+
+const atk = this.moves.light[this.comboStep] || this.moves.light[0];
+if(this.startAttack(atk)){
+this.lightCd=7;
+this.comboWin=18;
+this.comboStep=(this.comboStep+1)%3;
+}
+}
+
+if(kDown && this.heavyCd===0){
+if(this.startAttack(this.moves.heavy)){
+this.heavyCd=18;
+this.comboStep=0;
+this.comboWin=0;
+}
 }
 }
 }
 
 class Enemy extends Entity{
-constructor(x,y,tier=1){
-super(x,y,36,60);
+constructor(x,y,type='grunt',tier=1){
+super(x,y);
+this.type=type;
 this.tier=tier;
-this.maxHp = 52 + 18*(tier-1);
+
+if(type==='boss'){
+this.w=44; this.h=74;
+this.maxHp = 240 + 45*(tier-1);
 this.hp = this.maxHp;
-this.attackCd = 40 + Math.floor(Math.random()*50);
+}else{
+this.maxHp = 60 + 18*(tier-1);
+this.hp = this.maxHp;
 }
+this.attackCd = 35 + Math.floor(Math.random()*55);
+}
+
 ai(p){
 if(this.dead) return;
 if(this.attackCd>0) this.attackCd--;
-
+if(this.grabbedBy) return;
+if(this.down>0 || this.getup>0) return;
 if(this.hitstun>0) return;
 
-this.facing = p.x>this.x ? 1 : -1;
+this.facing = (p.x>this.x) ? 1 : -1;
 
 const dx = p.x - this.x;
 const dy = p.y - this.y;
-
-// lane alignment
-if(Math.abs(dy) > 10){
-this.y += clamp(dy, -1.8, 1.8);
-}
-
-// approach
 const distX = Math.abs(dx);
 const distY = Math.abs(dy);
 
-if(distX > 85){
-const sp = 2.0 + 0.25*this.tier;
+if(distY > 10){
+this.y += clamp(dy, -1.7, 1.7) * (this.type==='boss'?1.06:1.0);
+}
+
+const desired = (this.type==='boss') ? 92 : 80;
+
+if(distX > desired){
+const sp = (this.type==='boss') ? (2.35 + 0.25*this.tier) : (2.05 + 0.22*this.tier);
 this.vx += clamp(dx, -1, 1) * sp;
 }else{
-// in range
-if(!this.attack && this.attackCd===0 && distY < 28){
-const atk = (Math.random()<0.75) ? ATK_LIGHT : ATK_HEAVY;
+if(!this.attack && this.attackCd===0 && distY < 30 && !p.grabTarget && !p.isInSpecial()){
+const useHeavy = (this.type==='boss') ? (Math.random()<0.55) : (Math.random()<0.20);
+const atk = useHeavy ? MOVESETS.sword.heavy : MOVESETS.sword.light[1];
 this.startAttack(atk);
-this.attackCd = 45 + Math.floor(Math.random()*60);
+this.attackCd = (this.type==='boss') ? 35 + Math.floor(Math.random()*45)
+: 45 + Math.floor(Math.random()*70);
 }
 }
 }
 }
 
-// Input: virtual stick + buttons
-const input = {dx:0, dy:0, jump:false, light:false, heavy:false};
-let stickActive=false, stickId=null;
-const stick = document.getElementById('stick');
-const knob = document.getElementById('knob');
-const baseRect = () => stick.getBoundingClientRect();
-let stickCenter = {x:0,y:0};
+function findGrabbableEnemy(p){
+if(!p.canAct()) return null;
 
-function setKnob(nx, ny){
-const max = 46;
-const x = clamp(nx*max, -max, max);
-const y = clamp(ny*max, -max, max);
-knob.style.transform = `translate(${x}px, ${y}px)`;
-}
-function resetStick(){
-stickActive=false; stickId=null;
-input.dx=0; input.dy=0;
-setKnob(0,0);
-}
+const grabX = 28;
+const grabY = 24;
 
-function onStickStart(e){
-e.preventDefault();
-const t = (e.changedTouches ? e.changedTouches[0] : e);
-stickActive=true; stickId = t.identifier ?? 'mouse';
-const r = baseRect();
-stickCenter = {x: r.left + r.width/2, y: r.top + r.height/2};
-onStickMove(e);
+let best = null;
+let bestDist = 1e9;
+
+for(const en of enemies){
+if(en.dead) continue;
+if(en.grabbedBy || en.grabTarget) continue;
+if(en.hitstun>0) continue;
+if(en.attack) continue;
+if(en.down>0 || en.getup>0) continue;
+
+const dx = en.x - p.x;
+const dy = en.y - p.y;
+
+if(Math.abs(dy) > grabY) continue;
+if(Math.abs(dx) > grabX) continue;
+
+const d = Math.abs(dx) + Math.abs(dy);
+if(d < bestDist){
+bestDist = d;
+best = en;
 }
-function onStickMove(e){
-if(!stickActive) return;
-const touches = e.changedTouches ? Array.from(e.changedTouches) : [e];
-const t = touches.find(tt => (tt.identifier ?? 'mouse') === stickId);
-if(!t) return;
-const dx = (t.clientX - stickCenter.x);
-const dy = (t.clientY - stickCenter.y);
-const len = Math.hypot(dx, dy) || 1;
-const nx = dx / Math.max(60, len);
-const ny = dy / Math.max(60, len);
-input.dx = clamp(nx, -1, 1);
-input.dy = clamp(ny, -1, 1);
-setKnob(input.dx, input.dy);
 }
-function onStickEnd(e){
-const touches = e.changedTouches ? Array.from(e.changedTouches) : [e];
-const t = touches.find(tt => (tt.identifier ?? 'mouse') === stickId);
-if(t) resetStick();
+return best;
 }
 
-stick.addEventListener('touchstart', onStickStart, {passive:false});
-stick.addEventListener('touchmove', onStickMove, {passive:false});
-stick.addEventListener('touchend', onStickEnd, {passive:false});
-stick.addEventListener('touchcancel', onStickEnd, {passive:false});
+// Drawing
+function drawHero(e, camX){
+const b = e.body();
+const x = b.x - camX, y = b.y;
+shadow(e.x - camX, e.y);
 
-// Buttons
-const btnJump = document.getElementById('btnJump');
-const btnPunch = document.getElementById('btnPunch');
-const btnHeavy = document.getElementById('btnHeavy');
+const blink = (e.invuln>0 && (e.invuln%6<3));
+const flash = e.flash>0 || blink;
+const outline = 'rgba(0,0,0,.38)';
+const skin = flash ? '#ffffff' : '#f2c9a0';
+const hair = flash ? '#ffffff' : '#2a2a2e';
+const metal = flash ? '#ffffff' : '#d7d7df';
 
-function bindHold(btn, key){
-btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); input[key]=true; }, {passive:false});
-btn.addEventListener('touchend', (e)=>{ e.preventDefault(); input[key]=false; }, {passive:false});
-btn.addEventListener('touchcancel',(e)=>{ e.preventDefault(); input[key]=false; }, {passive:false});
+const weapon = e.weaponKey;
+const armorA = flash ? '#ffffff' : (weapon==='spear' ? '#2aa36d' : weapon==='dao' ? '#b13b3b' : '#2c6bd6');
+const armorB = flash ? '#ffffff' : (weapon==='spear' ? '#146443' : weapon==='dao' ? '#7a1e1e' : '#1f3d7a');
+const cape = flash ? '#ffffff' : (weapon==='dao' ? '#2c6bd6' : '#b13b3b');
+
+if(e.down>0){
+pxRect(x+6, y+42, 34, 10, armorA);
+pxRect(x+30, y+36, 10, 10, skin);
+return;
 }
-bindHold(btnJump,'jump');
-bindHold(btnPunch,'light');
-bindHold(btnHeavy,'heavy');
-
-// Tap to restart when dead
-canvas.addEventListener('touchstart', (e)=>{
-if(state.gameOver){
-e.preventDefault();
-restart();
+if(e.getup>0){
+pxRect(x+10, y+30, 22, 20, armorA);
+pxRect(x+14, y+18, 14, 14, skin);
+return;
 }
-}, {passive:false});
 
-// Game state
+const moving = Math.abs(e.vx) > 0.4 && e.hitstun<=0 && !e.attack && !e.grabTarget && !e.isInSpecial();
+const bob = moving ? (Math.sin(e.animT/5)*1.2) : 0;
+
+pxRect(x+6, y+20 + bob, 26, 20, cape);
+
+pxRect(x+12, y+44 + bob, 8, 16, '#3a3a47');
+pxRect(x+20, y+44 + bob, 8, 16, '#3a3a47');
+pxRect(x+10, y+58 + bob, 12, 4, '#1b1b22');
+pxRect(x+18, y+58 + bob, 12, 4, '#1b1b22');
+
+pxRect(x+10, y+22 + bob, 20, 22, armorA);
+pxRect(x+10, y+22 + bob, 20, 4, armorB);
+pxRect(x+9, y+30 + bob, 22, 2, armorB);
+
+pxRect(x+6, y+22 + bob, 6, 8, armorB);
+pxRect(x+28,y+22 + bob, 6, 8, armorB);
+
+const dir = e.facing;
+pxRect(x+10, y+2 + bob, 16, 16, skin);
+pxRect(x+10, y+2 + bob, 16, 4, hair);
+pxRect(x + (dir>0?22:14), y+8 + bob, 2, 2, '#141622');
+
+pxRect(x+6, y+28 + bob, 8, 6, armorB);
+pxRect(x+22,y+28 + bob, 8, 6, armorB);
+
+if(e.isInSpecial()){
+ctx.globalAlpha = 0.22;
+ctx.fillStyle = '#ffffff';
+ctx.beginPath();
+ctx.ellipse(x+18, y+34 + bob, 34, 18, 0, 0, Math.PI*2);
+ctx.fill();
+ctx.globalAlpha = 1;
+}
+
+if(e.grabTarget){
+const gx = x + (dir>0?30:2);
+pxRect(gx, y+26 + bob, 3, 20, metal);
+} else if(!e.attack){
+const wx = x + (dir>0?30:2);
+const len = (weapon==='spear') ? 36 : 26;
+pxRect(wx, y+24 + bob, 3, len, metal);
+pxRect(wx-1, y+23 + bob, 5, 3, '#b38b2f');
+} else {
+const phase = e.phase();
+if(phase==='active'){
+ctx.globalAlpha = 0.30;
+ctx.fillStyle = '#ffffff';
+const ax = (dir>0) ? (x+34) : (x-10);
+ctx.beginPath();
+ctx.ellipse(ax, y+30 + bob, e.attack.name==='heavy'?34:26, e.attack.name==='heavy'?18:14, 0, 0, Math.PI*2);
+ctx.fill();
+ctx.globalAlpha = 1;
+}
+const wx = x + (dir>0?26:6);
+const wy = y + 18 + bob + (e.attack.name==='heavy' ? -2 : 2);
+const len = (weapon==='spear') ? (e.attack.name==='heavy'?44:38) : (e.attack.name==='heavy'?34:28);
+pxRect(wx + (dir>0?10:-10), wy, 3, len, metal);
+pxRect(wx + (dir>0?8:-12), wy+2, 7, 3, '#b38b2f');
+}
+
+ctx.strokeStyle = outline;
+ctx.strokeRect(Math.round(x)+0.5, Math.round(y+bob)+0.5, b.w, b.h);
+}
+
+function drawEnemy(e, camX){
+const b = e.body();
+const x = b.x - camX, y = b.y;
+shadow(e.x - camX, e.y);
+
+const blink = (e.invuln>0 && (e.invuln%6<3));
+const flash = e.flash>0 || blink;
+const skin = flash ? '#ffffff' : '#e7bf97';
+const clothA = flash ? '#ffffff' : (e.type==='boss' ? '#5b3fd6' : '#d9b14a');
+const clothB = flash ? '#ffffff' : (e.type==='boss' ? '#2d1e7a' : '#8a6d1f');
+const hair = flash ? '#ffffff' : '#2b2b31';
+const metal = flash ? '#ffffff' : '#d7d7df';
+
+if(e.down>0){
+pxRect(x+6, y+42, 34, 10, clothA);
+pxRect(x+30, y+36, 10, 10, skin);
+return;
+}
+if(e.getup>0){
+pxRect(x+10, y+30, 22, 20, clothA);
+pxRect(x+14, y+18, 14, 14, skin);
+return;
+}
+
+const moving = Math.abs(e.vx) > 0.35 && e.hitstun<=0 && !e.attack && !e.grabbedBy;
+const bob = moving ? (Math.sin(e.animT/5)*1.1) : 0;
+
+pxRect(x+10, y+44 + bob, 8, 16, '#3a3a47');
+pxRect(x+20, y+44 + bob, 8, 16, '#3a3a47');
+
+pxRect(x+9, y+22 + bob, 22, 22, clothA);
+pxRect(x+9, y+22 + bob, 22, 4, clothB);
+
+pxRect(x+11, y+4 + bob, 18, 16, skin);
+pxRect(x+11, y+4 + bob, 18, 4, hair);
+
+const dir = e.facing;
+pxRect(x + (dir>0?23:15), y+10 + bob, 2, 2, '#141622');
+
+pxRect(x+4, y+28 + bob, 8, 6, clothB);
+pxRect(x+24,y+28 + bob, 8, 6, clothB);
+
+if(e.grabbedBy){
+ctx.globalAlpha = 0.85;
+pxRect(x+16, y+26 + bob, 3, 18, metal);
+ctx.globalAlpha = 1;
+} else if(!e.attack){
+const wx = x + (dir>0?30:3);
+pxRect(wx, y+26 + bob, 3, 22, metal);
+} else {
+const phase = e.phase();
+if(phase==='active'){
+ctx.globalAlpha = 0.28;
+ctx.fillStyle = '#ffffff';
+const ax = (dir>0) ? (x+34) : (x-8);
+ctx.beginPath();
+ctx.ellipse(ax, y+30 + bob, e.attack.name==='heavy'?30:22, e.attack.name==='heavy'?16:12, 0, 0, Math.PI*2);
+ctx.fill();
+ctx.globalAlpha = 1;
+}
+const wx = x + (dir>0?26:6);
+const wy = y+18 + bob + (e.attack.name==='heavy' ? -2 : 2);
+pxRect(wx + (dir>0?10:-10), wy, 3, e.attack.name==='heavy'?30:24, metal);
+pxRect(wx + (dir>0?8:-12), wy+2, 7, 3, '#b38b2f');
+}
+
+if(e.type==='boss'){
+pxRect(x+4, y+20 + bob, 36, 12, 'rgba(177,59,59,.85)');
+}
+}
+
+function drawItem(it, camX){
+if(it.taken) return;
+const r = it.rect();
+const x = r.x - camX, y = r.y;
+shadow(it.x - camX, it.y);
+pxRect(x+2, y+6, 16, 12, '#f4f4f7');
+pxRect(x+6, y+12, 8, 6, '#1d1d26');
+ctx.strokeStyle='rgba(0,0,0,.25)';
+ctx.strokeRect(Math.round(x+2)+0.5, Math.round(y+6)+0.5, 16, 12);
+}
+
 const state = {
-camX:0,
-wave:1,
-waveTimer:0,
-gameOver:false,
-alive:0,
+camX: 0,
+wave: 1,
+waveTimer: 0,
+gameOver: false,
+hitstop: 0,
+mode: 'select',
+weaponKey: 'sword',
 };
 
-let player = new Player(180, GROUND_Y);
+let player = null;
 let enemies = [];
+let items = [];
 
 function spawnWave(){
 const count = 3 + (state.wave % 3);
-const tier = clamp(1 + Math.floor(state.wave/3), 1, 4);
+const tier = clamp(1 + Math.floor(state.wave/3), 1, 5);
+
 for(let i=0;i<count;i++){
-const x = clamp(state.camX + innerWidth + 160 + Math.random()*360, 120, WORLD_W-120);
+const x = clamp(state.camX + innerWidth + 160 + Math.random()*520, 140, WORLD_W-140);
 const y = LANE_MIN + 10 + Math.random()*(LANE_MAX-LANE_MIN-20);
-enemies.push(new Enemy(x,y,tier));
+enemies.push(new Enemy(x,y,'grunt',tier));
+}
+if(state.wave % 4 === 0){
+const x = clamp(state.camX + innerWidth + 520, 200, WORLD_W-200);
+const y = LANE_MIN + 20 + Math.random()*(LANE_MAX-LANE_MIN-40);
+enemies.push(new Enemy(x,y,'boss',tier));
 }
 }
 
-function aabb(a,b){
-return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+function maybeDropFood(x,y){
+if(Math.random() < 0.22) items.push(new Item(x,y));
 }
 
 function resolveHits(){
+// Normal attacks
 const hb = player.hitbox();
 if(hb){
 for(let i=0;i<enemies.length;i++){
 const en = enemies[i];
 if(en.dead) continue;
 if(player.hitSet.has(i)) continue;
+if(en.grabbedBy) continue;
+if(en.down>0 || en.getup>0) continue;
 if(Math.abs(en.y - player.y) <= player.attack.rangeY){
 if(aabb(hb, en.body())){
-en.takeHit(player.attack.dmg, player.attack.kb, player.facing);
+en.takeHit(player.attack.dmg, player.attack.kb, player.facing, !!player.attack.knocksDown);
 player.hitSet.add(i);
-player.score += en.dead ? 60 : 12;
+state.hitstop = Math.max(state.hitstop, player.attack.hitstop);
+player.score += en.dead ? (en.type==='boss'?140:70) : 12;
+if(en.dead) maybeDropFood(en.x, en.y);
 }
 }
 }
 }
 
-for(let i=0;i<enemies.length;i++){
-const en = enemies[i];
+// Specials
+const sp = player.moves.special;
+if(sp && player.isInSpecial()){
+const shb = player.specialHitbox();
+if(shb){
+if(!player._spHitMap) player._spHitMap = new Map();
+for(const en of enemies){
+if(en.dead) continue;
+if(en.grabbedBy) continue;
+if(en.down>0 || en.getup>0) continue;
+if(Math.abs(en.y - player.y) > sp.rangeY) continue;
+if(!aabb(shb, en.body())) continue;
+
+const last = player._spHitMap.get(en) ?? -9999;
+if((player.animT - last) < sp.hitEvery) continue;
+
+const isLastHit = (player.specialT <= 6);
+const kd = sp.knocksDownOnLast && isLastHit;
+en.takeHit(sp.dmg, sp.kb, player.facing, kd);
+
+player._spHitMap.set(en, player.animT);
+state.hitstop = Math.max(state.hitstop, sp.hitstop);
+player.score += en.dead ? (en.type==='boss'?140:70) : 10;
+if(en.dead) maybeDropFood(en.x, en.y);
+}
+}
+}
+
+// Enemy attacks
+for(const en of enemies){
 const ehb = en.hitbox();
 if(!ehb) continue;
-const key = 1; // player single
+const key = 1;
 if(en.hitSet.has(key)) continue;
+if(player.grabTarget) continue;
+if(player.down>0 || player.getup>0) continue;
 if(Math.abs(player.y - en.y) <= en.attack.rangeY){
 if(aabb(ehb, player.body())){
-player.takeHit(en.attack.dmg, en.attack.kb, en.facing);
+player.takeHit(en.attack.dmg, en.attack.kb, en.facing, !!en.attack.knocksDown);
 en.hitSet.add(key);
+state.hitstop = Math.max(state.hitstop, en.attack.hitstop);
 }
 }
 }
 }
 
-function draw(){
-const W = window.innerWidth;
-const H = window.innerHeight;
+function pickupItems(){
+const pr = player.body();
+for(const it of items){
+if(it.taken) continue;
+if(it.life<=0){ it.taken=true; continue; }
+if(aabb(pr, it.rect())){
+it.taken = true;
+const heal = 28;
+player.hp = Math.min(player.maxHp, player.hp + heal);
+player.score += 20;
+}
+}
+}
 
-// background
+function drawWorld(){
+const W = innerWidth, H = innerHeight;
 ctx.clearRect(0,0,W,H);
-ctx.fillStyle = '#12121a';
+
+ctx.fillStyle = '#141622';
 ctx.fillRect(0,0,W,H);
 
-// parallax vertical lines
 ctx.globalAlpha = 0.22;
-ctx.strokeStyle = '#2b2b34';
-ctx.lineWidth = 1;
-const offset = (state.camX*0.25) % 90;
-for(let x=-offset; x<W+90; x+=90){
-ctx.beginPath();
-ctx.moveTo(x,0);
-ctx.lineTo(x,H);
-ctx.stroke();
+ctx.fillStyle = '#2a2c3a';
+const off = (state.camX*0.30) % 120;
+for(let x=-off; x<W+140; x+=120){
+ctx.fillRect(Math.round(x), 50, 12, 210);
 }
 ctx.globalAlpha = 1;
 
-// floor
-ctx.fillStyle = '#2a2a34';
+ctx.fillStyle = '#2a2c3a';
 ctx.fillRect(0, GROUND_Y+6, W, H-(GROUND_Y+6));
-// lane stripes
+
 ctx.globalAlpha = 0.35;
-ctx.fillStyle = '#1d1d26';
+ctx.fillStyle = '#1b1d28';
 ctx.fillRect(0, LANE_MIN+4, W, 2);
 ctx.fillRect(0, LANE_MAX+4, W, 2);
 ctx.globalAlpha = 1;
 
-// scenery: "真定城牆" blocks
-const blocks = [320, 860, 1360, 1920, 2460, 2920];
-for(const bx of blocks){
+const props = [260, 720, 1180, 1680, 2240, 2780, 3320];
+for(const bx of props){
 const sx = bx - state.camX;
-if(sx>-120 && sx<W+120){
-ctx.fillStyle = '#1c1c24';
-roundRect(sx, 245, 86, 140, 16);
-ctx.fillStyle = '#262632';
-roundRect(sx+12, 270, 62, 108, 14);
-
-// banner pole
-ctx.strokeStyle = 'rgba(255,255,255,.14)';
+if(sx>-140 && sx<W+140){
+ctx.fillStyle = '#1d1f2b';
+ctx.fillRect(Math.round(sx), 285, 76, 64);
+ctx.fillStyle = '#26293a';
+ctx.fillRect(Math.round(sx+10), 295, 56, 44);
+ctx.strokeStyle = 'rgba(255,255,255,.13)';
 ctx.lineWidth = 2;
 ctx.beginPath();
-ctx.moveTo(sx+72, 238);
-ctx.lineTo(sx+72, 330);
+ctx.moveTo(sx+68, 270);
+ctx.lineTo(sx+68, 330);
 ctx.stroke();
-// banner (yellow turban vibe)
-ctx.fillStyle = 'rgba(245,210,110,.25)';
-roundRect(sx+74, 248, 38, 20, 6);
+ctx.fillStyle = 'rgba(255,255,255,.08)';
+ctx.fillRect(Math.round(sx+70), 276, 46, 20);
 }
 }
 
-// sort by y for depth
+for(const it of items) drawItem(it, state.camX);
+
 const drawList = enemies.concat([player]).sort((a,b)=>a.y-b.y);
-
 for(const e of drawList){
-const bx = e.body();
-const x = bx.x - state.camX;
-const y = bx.y;
-
-// shadow
-const sh = e.shadow();
-ctx.fillStyle = 'rgba(0,0,0,.35)';
-ellipse(sh.x - state.camX + sh.w/2, sh.y + sh.h/2, sh.w/2, sh.h/2);
-
-if(e.dead){
-ctx.globalAlpha = 0.65;
-ctx.fillStyle = '#3b3b45';
-roundRect(x, y, bx.w, bx.h, 10);
-ctx.globalAlpha = 1;
-continue;
-}
-
-// Puppet-ish silhouette: head + body (simple shapes)
-const isPlayer = (e === player);
-const baseC = isPlayer ? '#70d6ff' : '#f1d47d';
-
-// hit flash
-const flash = e.flash>0;
-ctx.fillStyle = flash ? '#ffffff' : baseC;
-
-// body
-roundRect(x, y+12, bx.w, bx.h-12, 10);
-
-// head (bigger, puppet vibe)
-ctx.fillStyle = flash ? '#ffffff' : (isPlayer ? '#9be3ff' : '#ffe6a7');
-roundRect(x+6, y-2, bx.w-12, 22, 10);
-
-// eye dot
-ctx.fillStyle = '#16161b';
-const ex = x + bx.w/2 + 7*e.facing;
-ctx.beginPath();
-ctx.arc(ex, y+10, 3, 0, Math.PI*2);
-ctx.fill();
-
-// weapon/arm hint when attacking
-const hb = e.hitbox();
-if(hb){
-ctx.strokeStyle = 'rgba(255,120,120,.95)';
-ctx.lineWidth = 2;
-ctx.strokeRect(hb.x - state.camX, hb.y, hb.w, hb.h);
+if(e === player) drawHero(e, state.camX);
+else drawEnemy(e, state.camX);
 }
 }
 
-// mini captions
-ctx.fillStyle = 'rgba(255,255,255,.80)';
-ctx.font = '14px -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", sans-serif';
-ctx.fillText('左下搖桿移動｜右下：跳/普攻/重攻', 12, H-12);
-}
-
-function roundRect(x,y,w,h,r){
-ctx.beginPath();
-ctx.moveTo(x+r,y);
-ctx.arcTo(x+w,y,x+w,y+h,r);
-ctx.arcTo(x+w,y+h,x,y+h,r);
-ctx.arcTo(x,y+h,x,y,r);
-ctx.arcTo(x,y,x+w,y,r);
-ctx.closePath();
-ctx.fill();
-}
-function ellipse(cx,cy,rx,ry){
-ctx.beginPath();
-ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);
-ctx.fill();
-}
-
-function restart(){
-state.camX=0; state.wave=1; state.waveTimer=0; state.gameOver=false;
-player = new Player(180, GROUND_Y);
-enemies = [];
-spawnWave();
+function showSelect(){
+state.mode = 'select';
+overlay.style.display = 'flex';
 toast.style.display = 'none';
+infoText.textContent = '選角色：按 1/2/3（劍/槍/刀）';
 }
 
-function update(){
-if(state.gameOver){
-draw();
-requestAnimationFrame(update);
+function startGame(weaponKey){
+state.weaponKey = weaponKey;
+state.mode = 'play';
+overlay.style.display = 'none';
+restart(false);
+}
+
+function restart(goToSelect){
+state.camX=0;
+state.wave=1;
+state.waveTimer=0;
+state.gameOver=false;
+state.hitstop=0;
+
+enemies = [];
+items = [];
+
+player = new Player(190, GROUND_Y, state.weaponKey);
+spawnWave();
+
+toast.style.display='none';
+if(goToSelect) showSelect();
+}
+
+let lastT = performance.now();
+function loop(now){
+lastT = now;
+
+if(state.mode === 'select'){
+if(!player) player = new Player(190, GROUND_Y, 'sword');
+drawWorld();
+requestAnimationFrame(loop);
 return;
 }
 
-// one-frame buttons: light/heavy/jump are "held" by touch, but we treat as press each frame okay.
-player.update(input);
-
+if(!state.gameOver){
+if(state.hitstop>0){
+state.hitstop--;
+if(player.grabTarget) player.keepGrabAligned();
+}else{
+player.update();
 for(const en of enemies) en.ai(player);
+
+if(player.grabTarget) player.keepGrabAligned();
 
 player.physics(); player.tick();
 for(const en of enemies){ en.physics(); en.tick(); }
 
+if(player.grabTarget) player.keepGrabAligned();
+
 resolveHits();
+pickupItems();
 
-// camera
-const target = player.x - window.innerWidth*0.35;
-state.camX = lerp(state.camX, target, 0.10);
-state.camX = clamp(state.camX, 0, WORLD_W - window.innerWidth);
+if(player.grabTarget && player.grabTarget.dead) player.releaseGrab(true);
 
-// wave spawn logic
 const alive = enemies.filter(e=>!e.dead).length;
-state.alive = alive;
 if(alive <= 2){
 state.waveTimer++;
 if(state.waveTimer > 90){
@@ -597,29 +1116,37 @@ state.wave++;
 spawnWave();
 state.waveTimer=0;
 }
-}else{
-state.waveTimer=0;
+}else state.waveTimer=0;
+
+for(const it of items){ if(!it.taken) it.tick(); }
+
+const target = player.x - innerWidth*0.35;
+state.camX = lerp(state.camX, target, 0.10);
+state.camX = clamp(state.camX, 0, WORLD_W - innerWidth);
 }
 
 if(player.dead){
 state.gameOver=true;
-toast.style.display = 'block';
-infoText.textContent = `倒下｜分數 ${player.score} ｜點畫面重來`;
-}else{
-infoText.textContent = `波次 ${state.wave}｜敵兵 ${alive}｜分數 ${player.score}`;
+toast.style.display='block';
+}
 }
 
-// UI hp
 const pct = Math.max(0, player.hp/player.maxHp);
 hpFill.style.width = Math.floor(pct*100) + '%';
-hpText.textContent = `趙雲（布袋戲）HP ${player.hp}/${player.maxHp}`;
+const sp = player.moves.special;
+const spText = sp ? `｜必殺 ${sp.label} CD ${(player.specialCd/60).toFixed(1)}s` : '｜無必殺';
+hpText.textContent = `角色：${player.moves.label}｜HP ${player.hp}/${player.maxHp}｜Score ${player.score}${spText}`;
+const alive = enemies.filter(e=>!e.dead).length;
+infoText.textContent = state.gameOver
+? `倒下了｜按 R 回到選角 / 重開`
+: `Wave ${state.wave}｜Enemies ${alive}｜J 抓/打｜K 重攻/投擲｜L 必殺（槍/刀）`;
 
-draw();
-requestAnimationFrame(update);
+drawWorld();
+requestAnimationFrame(loop);
 }
 
-restart();
-update();
+showSelect();
+requestAnimationFrame(loop);
 })();
 </script>
 </body>
